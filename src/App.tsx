@@ -16,6 +16,72 @@ function readProfileFromUrl(): CardProfile {
   }
 }
 
+function createCardImage(profile: CardProfile): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1200
+    canvas.height = 1500
+    const context = canvas.getContext('2d')
+    if (!context) {
+      reject(new Error('当前设备不支持图片生成'))
+      return
+    }
+
+    const background = context.createLinearGradient(0, 0, 1200, 1500)
+    background.addColorStop(0, '#151b43')
+    background.addColorStop(0.52, '#252e68')
+    background.addColorStop(1, '#0b1026')
+    context.fillStyle = background
+    context.fillRect(0, 0, canvas.width, canvas.height)
+
+    const glow = context.createRadialGradient(875, 260, 20, 875, 260, 360)
+    glow.addColorStop(0, 'rgba(255, 243, 208, .42)')
+    glow.addColorStop(1, 'rgba(255, 243, 208, 0)')
+    context.fillStyle = glow
+    context.fillRect(520, 0, 680, 620)
+
+    context.beginPath()
+    context.arc(900, 260, 185, 0, Math.PI * 2)
+    context.fillStyle = '#fff3d0'
+    context.shadowColor = 'rgba(255, 243, 208, .6)'
+    context.shadowBlur = 40
+    context.fill()
+    context.shadowBlur = 0
+
+    context.strokeStyle = 'rgba(231, 185, 104, .35)'
+    context.lineWidth = 2
+    context.beginPath()
+    context.arc(900, 260, 275, 0, Math.PI * 2)
+    context.stroke()
+
+    context.fillStyle = '#e7b968'
+    context.font = '600 24px sans-serif'
+    context.fillText('中秋 / MID-AUTUMN', 90, 1020)
+    context.fillStyle = '#fff3d0'
+    context.font = '500 54px serif'
+    context.fillText(`${profile.to || defaultProfile.to}，`, 90, 1120)
+    context.font = '34px serif'
+    const message = profile.message || defaultProfile.message
+    const lines = message.match(/.{1,18}/g) || [message]
+    lines.slice(0, 3).forEach((line, index) => context.fillText(line, 90, 1190 + index * 58))
+    context.fillStyle = 'rgba(255, 243, 208, .62)'
+    context.font = '24px sans-serif'
+    context.fillText(profile.from || defaultProfile.from, 90, 1400)
+    context.fillStyle = '#f57c56'
+    context.font = '26px serif'
+    context.fillText('月', 1040, 1370)
+    context.fillText('圆', 1040, 1402)
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('图片生成失败'))
+        return
+      }
+      resolve(new File([blob], 'mid-autumn-blessing.png', { type: 'image/png' }))
+    }, 'image/png')
+  })
+}
+
 function limitText(value: string, max: number) {
   return Array.from(value.trim()).slice(0, max).join('')
 }
@@ -78,7 +144,11 @@ function App() {
   function handleCoverOpen(element: HTMLElement) {
     burstFromElement(element, midAutumnTheme.palette.moon, 38)
     if (soundOn) playChime('open')
-    goNext()
+    if (isShared) {
+      goTo('final')
+    } else {
+      goNext()
+    }
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -144,24 +214,48 @@ function App() {
     url.searchParams.set('to', limitText(profile.to, 20))
     url.searchParams.set('msg', limitText(profile.message, 80))
     url.searchParams.set('from', limitText(profile.from, 20))
-    const shareData = { title: midAutumnTheme.share.title, text: midAutumnTheme.share.description, url: url.toString() }
+    const shareData = { title: midAutumnTheme.share.title, text: `${profile.to || defaultProfile.to}，这份祝福送给你。打开后也可以制作一张送给别人。`, url: url.toString() }
     try {
+      const image = await createCardImage(profile)
+      if (navigator.share && navigator.canShare?.({ files: [image] })) {
+        setShareStatus('正在打开分享面板…')
+        await navigator.share({ ...shareData, files: [image] })
+        setShareStatus('祝福卡片已分享')
+        return
+      }
       if (navigator.share) {
         setShareStatus('正在打开分享面板…')
         await navigator.share(shareData)
-        setShareStatus('已打开分享面板')
+        setShareStatus('已打开分享面板，可继续发送')
         return
       }
+      await downloadCardImage(image)
       await navigator.clipboard.writeText(url.toString())
-      setShareStatus('祝福链接已复制')
-    } catch {
+      setShareStatus('卡片已保存，祝福入口已复制')
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setShareStatus('已取消分享')
+        return
+      }
       try {
+        const image = await createCardImage(profile)
+        await downloadCardImage(image)
         await navigator.clipboard.writeText(url.toString())
-        setShareStatus('祝福链接已复制')
+        setShareStatus('卡片已保存，祝福入口已复制')
       } catch {
         setShareStatus(url.toString())
       }
     }
+  }
+
+  async function downloadCardImage(image?: File) {
+    const cardImage = image || await createCardImage(profile)
+    const href = URL.createObjectURL(cardImage)
+    const anchor = document.createElement('a')
+    anchor.href = href
+    anchor.download = cardImage.name
+    anchor.click()
+    window.setTimeout(() => URL.revokeObjectURL(href), 1000)
   }
 
   function handleReplay() {
@@ -219,7 +313,7 @@ function App() {
 
       <div className="scene-frame">
         <AnimatePresence mode="wait" initial={false}>
-          {scene === 'cover' && <CoverScene key="cover" isShared={isShared} onOpen={handleCoverOpen} />}
+          {scene === 'cover' && <CoverScene key="cover" isShared={isShared} onOpen={handleCoverOpen} onMakeCard={() => goTo('personalize')} />}
           {scene === 'moonrise' && (
             <MoonriseScene
               key="moonrise"
@@ -235,7 +329,7 @@ function App() {
           {scene === 'personalize' && (
             <PersonalizeScene key="personalize" profile={profile} onChange={setProfile} onSubmit={handleGenerate} />
           )}
-          {scene === 'final' && <FinalScene key="final" profile={profile} shareStatus={shareStatus} onShare={handleShare} onReplay={handleReplay} />}
+          {scene === 'final' && <FinalScene key="final" profile={profile} isShared={isShared} shareStatus={shareStatus} onShare={handleShare} onDownload={() => downloadCardImage()} onReplay={handleReplay} onMakeCard={() => goTo('personalize')} />}
         </AnimatePresence>
       </div>
 
@@ -256,7 +350,7 @@ const sceneMotion = {
   transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const },
 }
 
-function CoverScene({ isShared, onOpen }: { isShared: boolean; onOpen: (element: HTMLElement) => void }) {
+function CoverScene({ isShared, onOpen, onMakeCard }: { isShared: boolean; onOpen: (element: HTMLElement) => void; onMakeCard: () => void }) {
   return (
     <motion.section className="scene scene--cover" {...sceneMotion} aria-labelledby="cover-title">
       <div className="cover-copy">
@@ -271,6 +365,7 @@ function CoverScene({ isShared, onOpen }: { isShared: boolean; onOpen: (element:
         <span className="moon-ripple moon-ripple--two" />
         <span className="moon-caption">轻触月亮开启</span>
       </button>
+      {!isShared && <button className="cover-make-button" type="button" onClick={onMakeCard}>我也做一张 <span aria-hidden="true">↗</span></button>}
       <div className="cover-meta"><span>01</span><span className="meta-rule" /><span>月出之前</span></div>
     </motion.section>
   )
@@ -354,17 +449,19 @@ function PersonalizeScene({ profile, onChange, onSubmit }: { profile: CardProfil
   )
 }
 
-function FinalScene({ profile, shareStatus, onShare, onReplay }: { profile: CardProfile; shareStatus: string; onShare: () => void; onReplay: () => void }) {
+function FinalScene({ profile, isShared, shareStatus, onShare, onDownload, onReplay, onMakeCard }: { profile: CardProfile; isShared: boolean; shareStatus: string; onShare: () => void; onDownload: () => void; onReplay: () => void; onMakeCard: () => void }) {
   return (
     <motion.section className="scene scene--final" {...sceneMotion} aria-labelledby="final-title">
       <div className="final-intro">
         <p className="eyebrow">月圆，人也圆</p>
         <h2 id="final-title">愿你所念皆如愿</h2>
-        <p>这份月光，现在可以寄出去了。</p>
+        <p>{isShared ? '你收到了一份月光，也可以把它改成自己的祝福。' : '这份月光，现在可以寄出去了。'}</p>
       </div>
       <CardFace profile={profile} />
       <div className="final-actions">
-        <button className="primary-button" type="button" onClick={onShare}>分享这份祝福 <span aria-hidden="true">↗</span></button>
+        <button className="primary-button" type="button" onClick={onShare}>分享卡片 <span aria-hidden="true">↗</span></button>
+        <button className="text-button" type="button" onClick={onDownload}>保存图片</button>
+        <button className="text-button" type="button" onClick={onMakeCard}>我也做一张</button>
         <button className="text-button" type="button" onClick={onReplay}>再看一次</button>
       </div>
       <p className="share-status" aria-live="polite">{shareStatus}</p>
