@@ -169,6 +169,19 @@ function App() {
     }
   }
 
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!stageRef.current || event.pointerType === 'touch') return
+    const x = (event.clientX / window.innerWidth - 0.5) * 2
+    const y = (event.clientY / window.innerHeight - 0.5) * 2
+    stageRef.current.style.setProperty('--mx', x.toFixed(3))
+    stageRef.current.style.setProperty('--my', y.toFixed(3))
+  }
+
+  function handlePointerLeave() {
+    stageRef.current?.style.setProperty('--mx', '0')
+    stageRef.current?.style.setProperty('--my', '0')
+  }
+
   function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement
     if (target.closest('input, textarea, select')) return
@@ -272,6 +285,8 @@ function App() {
       ref={stageRef}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
       onKeyDown={handleKeyDown}
       tabIndex={-1}
       style={{ '--night': midAutumnTheme.palette.night, '--horizon': midAutumnTheme.palette.horizon, '--moon': midAutumnTheme.palette.moon, '--gold': midAutumnTheme.palette.gold, '--jade': midAutumnTheme.palette.jade, '--verm': midAutumnTheme.palette.vermilion } as CSSProperties}
@@ -344,10 +359,10 @@ function App() {
 }
 
 const sceneMotion = {
-  initial: { opacity: 0, y: 24, filter: 'blur(8px)' },
-  animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
-  exit: { opacity: 0, y: -18, filter: 'blur(8px)' },
-  transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const },
+  initial: { opacity: 0, y: 34, scale: 0.965, filter: 'blur(14px)' },
+  animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
+  exit: { opacity: 0, y: -34, scale: 1.035, filter: 'blur(14px)' },
+  transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] as const },
 }
 
 function CoverScene({ isShared, onOpen, onMakeCard }: { isShared: boolean; onOpen: (element: HTMLElement) => void; onMakeCard: () => void }) {
@@ -358,9 +373,13 @@ function CoverScene({ isShared, onOpen, onMakeCard }: { isShared: boolean; onOpe
         <h1 id="cover-title">月光里的<br /><em>中秋祝福</em></h1>
         <p className="lede">把没说完的话，交给今晚的月亮。</p>
       </div>
+      <div className="cover-haze cover-haze--one" aria-hidden="true" />
+      <div className="cover-haze cover-haze--two" aria-hidden="true" />
+      <div className="cover-petals" aria-hidden="true">{Array.from({ length: 9 }, (_, index) => <i key={index} />)}</div>
       <div className="cover-orbit" aria-hidden="true"><span /><span /><span /></div>
       <button className="moon-trigger" type="button" onClick={(event) => onOpen(event.currentTarget)} aria-label="打开月光里的中秋祝福">
         <span className="moon-core" />
+        <span className="moon-glint" />
         <span className="moon-ripple moon-ripple--one" />
         <span className="moon-ripple moon-ripple--two" />
         <span className="moon-caption">轻触月亮开启</span>
@@ -380,6 +399,7 @@ function MoonriseScene({ blessingIndex, onPrevious, onNextBlessing, onContinue }
         <p>远方的风，替我问候你。</p>
       </div>
       <div className="moonrise-art" aria-hidden="true">
+        <div className="moon-glow" />
         <div className="moon-large" />
         <div className="cloud cloud--one" /><div className="cloud cloud--two" />
         <div className="mountain mountain--back" /><div className="mountain mountain--front" />
@@ -473,6 +493,7 @@ function CardFace({ profile, preview = false }: { profile: CardProfile; preview?
   return (
     <article className={`card-face ${preview ? 'card-face--preview' : ''}`} aria-label="中秋祝福卡片预览">
       <div className="card-face__grain" aria-hidden="true" />
+      <div className="card-face__sheen" aria-hidden="true" />
       <div className="card-face__moon" aria-hidden="true" />
       <div className="card-face__stars" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       <div className="card-face__rabbit" aria-hidden="true"><span className="rabbit-ear rabbit-ear--left" /><span className="rabbit-ear rabbit-ear--right" /><span className="rabbit-body" /><span className="rabbit-tail" /></div>
