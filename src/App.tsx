@@ -471,15 +471,21 @@ function FinalScene({ profile, isShared, shareStatus, onShare, onDownload, onRep
       <div className="final-intro">
         <p className="eyebrow">月圆，人也圆</p>
         <h2 id="final-title">愿你所念皆如愿</h2>
-        <p>{isShared ? '你收到了一份月光，也可以把它改成自己的祝福。' : '这份月光，现在可以寄出去了。'}</p>
+        <p>{isShared ? '这是一份专门写给你的中秋祝福。' : '这份月光，现在可以寄出去了。'}</p>
       </div>
       <CardFace profile={profile} />
-      <div className="final-actions">
-        <button className="primary-button" type="button" onClick={onShare}>分享动态卡片 <span aria-hidden="true">↗</span></button>
-        <button className="text-button" type="button" onClick={onDownload}>保存图片</button>
-        <button className="text-button" type="button" onClick={onMakeCard}>我也做一张</button>
-        <button className="text-button" type="button" onClick={onReplay}>再看一次</button>
-      </div>
+      {isShared ? (
+        <div className="final-actions final-actions--received">
+          <button className="text-button" type="button" onClick={onReplay}>再看一次 <span aria-hidden="true">↗</span></button>
+        </div>
+      ) : (
+        <div className="final-actions">
+          <button className="primary-button" type="button" onClick={onShare}>分享动态卡片 <span aria-hidden="true">↗</span></button>
+          <button className="text-button" type="button" onClick={onDownload}>保存图片</button>
+          <button className="text-button" type="button" onClick={onMakeCard}>我也做一张</button>
+          <button className="text-button" type="button" onClick={onReplay}>再看一次</button>
+        </div>
+      )}
       <p className="share-status" aria-live="polite">{shareStatus}</p>
     </motion.section>
   )
