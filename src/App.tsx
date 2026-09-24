@@ -466,6 +466,10 @@ function PersonalizeScene({ profile, onChange, onSubmit }: { profile: CardProfil
 }
 
 function FinalScene({ profile, isShared, shareStatus, onShare, onDownload, onReplay, onMakeCard }: { profile: CardProfile; isShared: boolean; shareStatus: string; onShare: () => void; onDownload: () => void; onReplay: () => void; onMakeCard: () => void }) {
+  if (isShared) {
+    return <ReceivedGreeting profile={profile} onReplay={onReplay} />
+  }
+
   return (
     <motion.section className="scene scene--final" {...sceneMotion} aria-labelledby="final-title">
       <div className="final-intro">
@@ -487,6 +491,29 @@ function FinalScene({ profile, isShared, shareStatus, onShare, onDownload, onRep
         </div>
       )}
       <p className="share-status" aria-live="polite">{shareStatus}</p>
+    </motion.section>
+  )
+}
+
+function ReceivedGreeting({ profile, onReplay }: { profile: CardProfile; onReplay: () => void }) {
+  return (
+    <motion.section className="scene scene--received" {...sceneMotion} aria-labelledby="received-title">
+      <div className="received-sky" aria-hidden="true" />
+      <div className="received-halo" aria-hidden="true" />
+      <div className="received-moon" aria-hidden="true"><span /><i /><i /><i /></div>
+      <div className="received-rings" aria-hidden="true"><i /><i /><i /></div>
+      <div className="received-mist received-mist--one" aria-hidden="true" />
+      <div className="received-mist received-mist--two" aria-hidden="true" />
+      <div className="received-water" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+      <div className="received-copy">
+        <p className="received-kicker">有人把月光寄给你</p>
+        <h2 id="received-title">中秋快乐</h2>
+        <p className="received-to">{profile.to || defaultProfile.to}，</p>
+        <p className="received-message">{profile.message || defaultProfile.message}</p>
+        <div className="received-rule" aria-hidden="true" />
+        <p className="received-from">{profile.from || defaultProfile.from}</p>
+      </div>
+      <button className="received-replay" type="button" onClick={onReplay}>再看一次 <span aria-hidden="true">↗</span></button>
     </motion.section>
   )
 }
