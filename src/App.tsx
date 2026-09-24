@@ -94,6 +94,7 @@ function App() {
   const [soundOn, setSoundOn] = useState(false)
   const [shareStatus, setShareStatus] = useState('')
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [receivedPage, setReceivedPage] = useState(0)
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
   const particleRef = useRef<ParticleFieldHandle>(null)
   const stageRef = useRef<HTMLDivElement>(null)
@@ -115,14 +116,20 @@ function App() {
     return () => stopAmbient()
   }, [soundOn])
 
-  const displayStep = scene === 'cover' ? 1 : scene === 'moonrise' ? 2 : scene === 'lanterns' ? 3 : 4
   const isShared = useMemo(() => Boolean(new URLSearchParams(window.location.search).get('to')), [])
+  const displayStep = isShared && scene === 'final' ? receivedPage + 1 : scene === 'cover' ? 1 : scene === 'moonrise' ? 2 : scene === 'lanterns' ? 3 : 4
 
   useEffect(() => {
     if (!isShared || scene !== 'cover') return
     const timer = window.setTimeout(() => setScene('final'), 2200)
     return () => window.clearTimeout(timer)
   }, [isShared, scene])
+
+  useEffect(() => {
+    if (!isShared || scene !== 'final' || receivedPage >= 3) return
+    const timer = window.setTimeout(() => setReceivedPage((current) => Math.min(3, current + 1)), 5600)
+    return () => window.clearTimeout(timer)
+  }, [isShared, scene, receivedPage])
 
   function burstFromElement(element: HTMLElement, color = midAutumnTheme.palette.gold, amount = 26) {
     const rect = element.getBoundingClientRect()
@@ -270,6 +277,7 @@ function App() {
   function handleReplay() {
     setLanterns([false, false, false])
     setBlessingIndex(0)
+    setReceivedPage(0)
     setShareStatus('')
     goTo('cover')
   }
@@ -340,7 +348,7 @@ function App() {
           {scene === 'personalize' && (
             <PersonalizeScene key="personalize" profile={profile} onChange={setProfile} onSubmit={handleGenerate} />
           )}
-          {scene === 'final' && <FinalScene key="final" profile={profile} isShared={isShared} shareStatus={shareStatus} onShare={handleShare} onDownload={() => downloadCardImage()} onReplay={handleReplay} onMakeCard={() => goTo('personalize')} />}
+          {scene === 'final' && <FinalScene key="final" profile={profile} isShared={isShared} receivedPage={receivedPage} shareStatus={shareStatus} onShare={handleShare} onDownload={() => downloadCardImage()} onReplay={handleReplay} onNextReceived={() => setReceivedPage((current) => Math.min(3, current + 1))} onMakeCard={() => goTo('personalize')} />}
         </AnimatePresence>
       </div>
 
@@ -465,9 +473,9 @@ function PersonalizeScene({ profile, onChange, onSubmit }: { profile: CardProfil
   )
 }
 
-function FinalScene({ profile, isShared, shareStatus, onShare, onDownload, onReplay, onMakeCard }: { profile: CardProfile; isShared: boolean; shareStatus: string; onShare: () => void; onDownload: () => void; onReplay: () => void; onMakeCard: () => void }) {
+function FinalScene({ profile, isShared, receivedPage, shareStatus, onShare, onDownload, onReplay, onNextReceived, onMakeCard }: { profile: CardProfile; isShared: boolean; receivedPage: number; shareStatus: string; onShare: () => void; onDownload: () => void; onReplay: () => void; onNextReceived: () => void; onMakeCard: () => void }) {
   if (isShared) {
-    return <ReceivedGreeting profile={profile} onReplay={onReplay} />
+    return <ReceivedGreeting profile={profile} page={receivedPage} onNext={onNextReceived} onReplay={onReplay} />
   }
 
   return (
@@ -495,9 +503,16 @@ function FinalScene({ profile, isShared, shareStatus, onShare, onDownload, onRep
   )
 }
 
-function ReceivedGreeting({ profile, onReplay }: { profile: CardProfile; onReplay: () => void }) {
+function ReceivedGreeting({ profile, page, onNext, onReplay }: { profile: CardProfile; page: number; onNext: () => void; onReplay: () => void }) {
+  const pageCopy = [
+    { kicker: '有人把月光寄给你', title: '月光抵达', text: '今晚的月亮，替一个想念你的人来敲门。' },
+    { kicker: '第一句祝福', title: '抬头有月', text: '愿你抬头有月，低头有暖，走过的路都有人惦记。' },
+    { kicker: '第二句祝福', title: '灯火可亲', text: '愿家有灯，心有归处；愿每一次回望，都有温柔回应。' },
+    { kicker: '写给你的话', title: '中秋快乐', text: profile.message || defaultProfile.message },
+  ][page]
+
   return (
-    <motion.section className="scene scene--received" {...sceneMotion} aria-labelledby="received-title">
+    <motion.section className={`scene scene--received received-page-${page}`} {...sceneMotion} aria-labelledby="received-title">
       <div className="received-sky" aria-hidden="true" />
       <div className="received-halo" aria-hidden="true" />
       <div className="received-moon" aria-hidden="true"><span /><i /><i /><i /></div>
@@ -506,14 +521,15 @@ function ReceivedGreeting({ profile, onReplay }: { profile: CardProfile; onRepla
       <div className="received-mist received-mist--two" aria-hidden="true" />
       <div className="received-water" aria-hidden="true"><i /><i /><i /><i /><i /></div>
       <div className="received-copy">
-        <p className="received-kicker">有人把月光寄给你</p>
-        <h2 id="received-title">中秋快乐</h2>
-        <p className="received-to">{profile.to || defaultProfile.to}，</p>
-        <p className="received-message">{profile.message || defaultProfile.message}</p>
+        <p className="received-kicker">{pageCopy.kicker}</p>
+        <h2 id="received-title">{pageCopy.title}</h2>
+        <p className="received-to">{page === 3 ? `${profile.to || defaultProfile.to}，` : '月满，人安。'}</p>
+        <p className="received-message">{pageCopy.text}</p>
         <div className="received-rule" aria-hidden="true" />
-        <p className="received-from">{profile.from || defaultProfile.from}</p>
+        <p className="received-from">{page === 3 ? (profile.from || defaultProfile.from) : '一份来自远方的惦念'}</p>
       </div>
-      <button className="received-replay" type="button" onClick={onReplay}>再看一次 <span aria-hidden="true">↗</span></button>
+      <div className="received-progress" aria-label={`祝福第 ${page + 1} 页，共 4 页`}><i className="is-active" /><i className={page >= 1 ? 'is-active' : ''} /><i className={page >= 2 ? 'is-active' : ''} /><i className={page >= 3 ? 'is-active' : ''} /></div>
+      {page < 3 ? <button className="received-replay received-next" type="button" onClick={onNext}>继续收下 <span aria-hidden="true">↗</span></button> : <button className="received-replay" type="button" onClick={onReplay}>再看一次 <span aria-hidden="true">↗</span></button>}
     </motion.section>
   )
 }
