@@ -103,6 +103,8 @@ h1 em { color: var(--moon); font-style: normal; text-shadow: 0 0 30px rgba(255, 
 .moon-core { animation: moon-float 5.5s ease-in-out infinite; }
 .moon-trigger:hover .moon-core { transform: scale(1.055); box-shadow: 0 0 65px rgba(255, 243, 208, .75), 0 0 180px rgba(255, 243, 208, .24); }
 .moon-glint { position: absolute; z-index: 4; width: 12%; aspect-ratio: 1; border-radius: 50%; background: rgba(255,255,255,.85); filter: blur(4px); transform: translate(24px,-38px); opacity: .55; animation: glint-sweep 4.5s ease-in-out infinite; }
+.app-shell.is-shared .moon-trigger::after { position: absolute; inset: 4%; border: 1px solid rgba(231,185,104,.42); border-radius: 50%; content: ''; animation: shared-countdown 2.2s linear both; }
+@keyframes shared-countdown { from { clip-path: inset(0 0 0 0); rotate: 0deg; opacity: .9; } to { clip-path: inset(0 0 100% 0); rotate: 180deg; opacity: 0; } }
 .moon-ripple { position: absolute; border: 1px solid rgba(255, 243, 208, .17); border-radius: 50%; animation: moon-breathe 4s ease-in-out infinite; }
 .moon-ripple--one { width: 71%; aspect-ratio: 1; }
 .moon-ripple--two { width: 86%; aspect-ratio: 1; animation-delay: -2s; opacity: .6; }

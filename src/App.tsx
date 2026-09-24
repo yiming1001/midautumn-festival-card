@@ -118,6 +118,12 @@ function App() {
   const displayStep = scene === 'cover' ? 1 : scene === 'moonrise' ? 2 : scene === 'lanterns' ? 3 : 4
   const isShared = useMemo(() => Boolean(new URLSearchParams(window.location.search).get('to')), [])
 
+  useEffect(() => {
+    if (!isShared || scene !== 'cover') return
+    const timer = window.setTimeout(() => setScene('final'), 2200)
+    return () => window.clearTimeout(timer)
+  }, [isShared, scene])
+
   function burstFromElement(element: HTMLElement, color = midAutumnTheme.palette.gold, amount = 26) {
     const rect = element.getBoundingClientRect()
     particleRef.current?.burst({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, color, amount)
@@ -227,34 +233,24 @@ function App() {
     url.searchParams.set('to', limitText(profile.to, 20))
     url.searchParams.set('msg', limitText(profile.message, 80))
     url.searchParams.set('from', limitText(profile.from, 20))
-    const shareData = { title: midAutumnTheme.share.title, text: `${profile.to || defaultProfile.to}，这份祝福送给你。打开后也可以制作一张送给别人。`, url: url.toString() }
+    const shareData = { title: `${profile.to || defaultProfile.to}，有一份月光祝福给你`, text: '点开这张动态贺卡，收下祝福，也可以制作一张送给别人。', url: url.toString() }
     try {
-      const image = await createCardImage(profile)
-      if (navigator.share && navigator.canShare?.({ files: [image] })) {
-        setShareStatus('正在打开分享面板…')
-        await navigator.share({ ...shareData, files: [image] })
-        setShareStatus('祝福卡片已分享')
-        return
-      }
       if (navigator.share) {
         setShareStatus('正在打开分享面板…')
         await navigator.share(shareData)
-        setShareStatus('已打开分享面板，可继续发送')
+        setShareStatus('动态贺卡已分享')
         return
       }
-      await downloadCardImage(image)
       await navigator.clipboard.writeText(url.toString())
-      setShareStatus('卡片已保存，祝福入口已复制')
+      setShareStatus('动态贺卡入口已复制')
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         setShareStatus('已取消分享')
         return
       }
       try {
-        const image = await createCardImage(profile)
-        await downloadCardImage(image)
         await navigator.clipboard.writeText(url.toString())
-        setShareStatus('卡片已保存，祝福入口已复制')
+        setShareStatus('动态贺卡入口已复制')
       } catch {
         setShareStatus(url.toString())
       }
@@ -281,7 +277,7 @@ function App() {
   return (
     <MotionConfig reducedMotion="user">
     <main
-      className={`app-shell scene-${scene} ${reducedMotion ? 'is-reduced-motion' : ''}`}
+      className={`app-shell scene-${scene} ${isShared ? 'is-shared' : ''} ${reducedMotion ? 'is-reduced-motion' : ''}`}
       ref={stageRef}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
@@ -382,7 +378,7 @@ function CoverScene({ isShared, onOpen, onMakeCard }: { isShared: boolean; onOpe
         <span className="moon-glint" />
         <span className="moon-ripple moon-ripple--one" />
         <span className="moon-ripple moon-ripple--two" />
-        <span className="moon-caption">轻触月亮开启</span>
+        <span className="moon-caption">{isShared ? '轻触月亮打开祝福' : '轻触月亮开启'}</span>
       </button>
       {!isShared && <button className="cover-make-button" type="button" onClick={onMakeCard}>我也做一张 <span aria-hidden="true">↗</span></button>}
       <div className="cover-meta"><span>01</span><span className="meta-rule" /><span>月出之前</span></div>
@@ -479,7 +475,7 @@ function FinalScene({ profile, isShared, shareStatus, onShare, onDownload, onRep
       </div>
       <CardFace profile={profile} />
       <div className="final-actions">
-        <button className="primary-button" type="button" onClick={onShare}>分享卡片 <span aria-hidden="true">↗</span></button>
+        <button className="primary-button" type="button" onClick={onShare}>分享动态卡片 <span aria-hidden="true">↗</span></button>
         <button className="text-button" type="button" onClick={onDownload}>保存图片</button>
         <button className="text-button" type="button" onClick={onMakeCard}>我也做一张</button>
         <button className="text-button" type="button" onClick={onReplay}>再看一次</button>
